@@ -65,9 +65,6 @@ export default function VerityDashboard() {
     }
   };
 
-  useEffect(() => {
-    fetchMockData();
-  }, [params.id]);
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] text-slate-900 font-sans">
