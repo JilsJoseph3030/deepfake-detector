@@ -3,3 +3,4 @@ uvicorn
 requests
 opencv-python-headless
 python-multipart
+python-dotenv
