@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Next.js build output
+.next/
+out/
+build/
+coverage/
+
+# Environment files & Secrets
+.env
+.env.*
+!.env.example
+
+# OS / Editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Misc
+*.pem
+*.log
