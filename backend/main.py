@@ -4,6 +4,7 @@ import requests
 import cv2
 import tempfile
 from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
 try:
@@ -12,7 +13,23 @@ try:
 except ImportError:
     pass
 
-app = FastAPI()
+app = FastAPI(title="VERITY Backend", version="1.0.0")
+
+# Allow requests from the Next.js frontend (Vercel + localhost)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "https://*.vercel.app",
+    ],
+    allow_credentials=True,
+    allow_methods=["POST", "GET"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+def health_check():
+    return {"status": "ok", "service": "VERITY ML Engine", "version": "1.0.0"}
 
 HF_API_URL = "https://api-inference.huggingface.co/models/prithivMLmods/Deep-Fake-Detector-Model"
 hf_api_key = os.environ.get("HF_API_KEY", "")
