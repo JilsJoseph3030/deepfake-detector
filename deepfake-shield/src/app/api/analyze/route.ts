@@ -1,61 +1,78 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import {
+  isValidMimeType,
+  isValidFileSize,
+  sanitizeFileName,
+  analyzeRateLimiter,
+} from "@/lib/validators";
 
 export async function POST(request: Request) {
+  // --- Rate Limiting ---
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  if (!analyzeRateLimiter.isAllowed(ip)) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a minute and try again." },
+      { status: 429 }
+    );
+  }
+
   try {
     const formData = await request.formData();
-    const file = formData.get('file') as File | null;
+    const file = formData.get("file") as File | null;
 
+    // --- Presence Check ---
     if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+      return NextResponse.json({ error: "No file provided." }, { status: 400 });
     }
 
-    // 1. File Type Sanitization
-    const validMimeTypes = [
-      'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo',
-      'image/jpeg', 'image/png', 'image/webp', 'image/gif',
-      'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm',
-    ];
-    if (!validMimeTypes.includes(file.type)) {
-      return NextResponse.json({ error: "Invalid file type. Supported: MP4, WEBM, MOV, JPG, PNG, MP3, WAV." }, { status: 422 });
+    // --- MIME Type Validation ---
+    if (!isValidMimeType(file.type)) {
+      return NextResponse.json(
+        {
+          error:
+            "Invalid file type. Supported formats: MP4, WEBM, MOV, AVI, JPG, PNG, WEBP, GIF, MP3, WAV, OGG.",
+        },
+        { status: 422 }
+      );
     }
 
-    // 2. File Size Sanitization (500MB cap = 500 * 1024 * 1024 bytes)
-    const MAX_SIZE = 500 * 1024 * 1024;
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: "File size exceeds the 500MB limit." }, { status: 413 });
+    // --- File Size Validation ---
+    if (!isValidFileSize(file.size)) {
+      return NextResponse.json(
+        { error: "File size must be between 1 byte and 500 MB." },
+        { status: 413 }
+      );
     }
 
-    // 3. Input Sanitization (Filename)
-    // Strip path traversals and special characters
-    let sanitizedFileName = file.name.replace(/^.*[\\\/]/, '');
-    sanitizedFileName = sanitizedFileName.replace(/[^a-zA-Z0-9.\-_]/g, '');
-    if (!sanitizedFileName) {
-      sanitizedFileName = "unnamed_video.mp4";
-    }
+    // --- Filename Sanitization ---
+    const sanitizedFileName = sanitizeFileName(file.name);
 
-    // Prepare FormData to send to the Python microservice
+    // --- Forward to Python ML Engine ---
     const pythonFormData = new FormData();
     pythonFormData.append("file", file);
 
     try {
-      const backendBaseUrl = process.env.PYTHON_BACKEND_URL || "http://127.0.0.1:8000";
-      // Forward the request to the Python ML Engine
-      const pythonResponse = await fetch(`${backendBaseUrl.replace(/\/$/, '')}/analyze`, {
-        method: "POST",
-        body: pythonFormData,
-      });
+      const backendBaseUrl =
+        process.env.PYTHON_BACKEND_URL || "http://127.0.0.1:8000";
+
+      const pythonResponse = await fetch(
+        `${backendBaseUrl.replace(/\/$/, "")}/analyze`,
+        {
+          method: "POST",
+          body: pythonFormData,
+          signal: AbortSignal.timeout(60_000), // 60s timeout
+        }
+      );
 
       if (!pythonResponse.ok) {
-         throw new Error(`Python Engine Error: ${pythonResponse.status}`);
+        throw new Error(`Python Engine Error: ${pythonResponse.status}`);
       }
 
       const mlPayload = await pythonResponse.json();
-      
-      // Override the filename in the payload to ensure sanitized naming is respected
       mlPayload.fileName = sanitizedFileName;
 
       return NextResponse.json(mlPayload, { status: 200 });
-
     } catch (mlError) {
       console.error("ML Engine Connection Failed:", mlError);
       return NextResponse.json(
@@ -63,11 +80,10 @@ export async function POST(request: Request) {
         { status: 503 }
       );
     }
-
   } catch (error) {
     console.error("Analysis Error:", error);
     return NextResponse.json(
-      { error: "Failed to process media" },
+      { error: "Failed to process media. Please try again." },
       { status: 500 }
     );
   }
