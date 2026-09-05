@@ -34,8 +34,9 @@ export async function POST(request: Request) {
     pythonFormData.append("file", file);
 
     try {
+      const backendBaseUrl = process.env.PYTHON_BACKEND_URL || "http://127.0.0.1:8000";
       // Forward the request to the Python ML Engine
-      const pythonResponse = await fetch("http://127.0.0.1:8000/analyze", {
+      const pythonResponse = await fetch(`${backendBaseUrl.replace(/\/$/, '')}/analyze`, {
         method: "POST",
         body: pythonFormData,
       });
