@@ -47,7 +47,8 @@ export default function VerifyWorkspace() {
       setCurrentStep(steps.length); // complete
 
       if (!response.ok) {
-        throw new Error("Analysis failed");
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData?.error || `Analysis failed (${response.status})`);
       }
 
       const result = await response.json();
@@ -62,7 +63,7 @@ export default function VerifyWorkspace() {
     } catch (error) {
       console.error(error);
       setIsProcessing(false);
-      alert("Failed to process media. Please try again.");
+      alert(error instanceof Error ? error.message : "Failed to process media. Please try again.");
     }
   };
 

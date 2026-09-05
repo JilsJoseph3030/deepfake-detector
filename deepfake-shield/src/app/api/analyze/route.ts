@@ -10,9 +10,13 @@ export async function POST(request: Request) {
     }
 
     // 1. File Type Sanitization
-    const validMimeTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
+    const validMimeTypes = [
+      'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo',
+      'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+      'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm',
+    ];
     if (!validMimeTypes.includes(file.type)) {
-      return NextResponse.json({ error: "Invalid file type. Only MP4, WEBM, and QuickTime videos are allowed." }, { status: 422 });
+      return NextResponse.json({ error: "Invalid file type. Supported: MP4, WEBM, MOV, JPG, PNG, MP3, WAV." }, { status: 422 });
     }
 
     // 2. File Size Sanitization (500MB cap = 500 * 1024 * 1024 bytes)
